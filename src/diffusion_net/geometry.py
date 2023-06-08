@@ -524,11 +524,9 @@ def get_operators(verts, faces, k_eig=128, op_cache_dir=None, normals=None, over
 
             except FileNotFoundError:
                 try:
-                    print("  cache miss -- trying to copy operator cache from bucket")
                     op_cache_file = hash_key_str + "_" + str(i_cache_search) + ".npz"
                     import subprocess
                     subprocess.run(['gsutil', 'cp', f'gs://gdl-scene-segment/scannet/diffusion-net/op_cache/{op_cache_file}', search_path], check=True)
-                    print("  cache miss -- operator cache fetched from bucket")
                 except subprocess.CalledProcessError:
                     print("  cache miss -- constructing operators")
                     break
