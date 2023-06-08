@@ -523,8 +523,15 @@ def get_operators(verts, faces, k_eig=128, op_cache_dir=None, normals=None, over
                 break
 
             except FileNotFoundError:
-                print("  cache miss -- constructing operators")
-                break
+                try:
+                    print("  cache miss -- trying to copy operator cache from bucket")
+                    op_cache_file = hash_key_str + "_" + str(i_cache_search) + ".npz"
+                    import subprocess
+                    subprocess.run(['gsutil', 'cp', f'gs://gdl-scene-segment/scannet/diffusion-net/op_cache/{op_cache_file}', search_path], check=True)
+                    print("  cache miss -- operator cache fetched from bucket")
+                except subprocess.CalledProcessError:
+                    print("  cache miss -- constructing operators")
+                    break
             
             except Exception as E:
                 print("unexpected error loading file: " + str(E))
@@ -535,37 +542,11 @@ def get_operators(verts, faces, k_eig=128, op_cache_dir=None, normals=None, over
 
         # No matching entry found; recompute.
         frames, mass, L, evals, evecs, gradX, gradY = compute_operators(verts, faces, k_eig, normals=normals)
+    
+    else:
 
-        dtype_np = np.float32
-
-        # Store it in the cache
-        if op_cache_dir is not None:
-
-            L_np = utils.sparse_torch_to_np(L).astype(dtype_np)
-            gradX_np = utils.sparse_torch_to_np(gradX).astype(dtype_np)
-            gradY_np = utils.sparse_torch_to_np(gradY).astype(dtype_np)
-
-            np.savez(search_path,
-                     verts=verts_np.astype(dtype_np),
-                     frames=toNP(frames).astype(dtype_np),
-                     faces=faces_np,
-                     k_eig=k_eig,
-                     mass=toNP(mass).astype(dtype_np),
-                     L_data = L_np.data.astype(dtype_np),
-                     L_indices = L_np.indices,
-                     L_indptr = L_np.indptr,
-                     L_shape = L_np.shape,
-                     evals=toNP(evals).astype(dtype_np),
-                     evecs=toNP(evecs).astype(dtype_np),
-                     gradX_data = gradX_np.data.astype(dtype_np),
-                     gradX_indices = gradX_np.indices,
-                     gradX_indptr = gradX_np.indptr,
-                     gradX_shape = gradX_np.shape,
-                     gradY_data = gradY_np.data.astype(dtype_np),
-                     gradY_indices = gradY_np.indices,
-                     gradY_indptr = gradY_np.indptr,
-                     gradY_shape = gradY_np.shape,
-                     )
+        from pathlib import Path
+        Path(search_path).unlink(missing_ok=True)
 
     return frames, mass, L, evals, evecs, gradX, gradY
 
